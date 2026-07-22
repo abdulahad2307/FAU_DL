@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Deep Learning · MCQ Trainer</title>
+<style>
+  :root{
+    --paper:#FBFAF7;
+    --panel:#FFFFFF;
+    --ink:#141B2E;
+    --ink-soft:#4A5468;
+    --line:#E4E1D8;
+    --line-strong:#CDC9BD;
+    --accent:#0E7C86;      /* signal teal */
+    --accent-weak:#E1F1F1;
+    --warn:#C2543D;        /* reserved: wrong / timer-critical */
+    --warn-weak:#F7E7E2;
+    --ok:#2E7D4F;
+    --ok-weak:#E4F0E7;
+    --chip:#EEF0F2;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 6px 24px rgba(20,27,46,.06);
+    --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:24px 20px 96px}
+
+  /* ---- masthead: reads like an instrument readout ---- */
+  header.top{
+    display:flex;align-items:baseline;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line-strong);
+    padding-bottom:14px;margin-bottom:26px;
+  }
+  .brand{font-family:var(--mono);font-size:13px;letter-spacing:.02em;color:var(--ink-soft)}
+  .brand b{color:var(--ink);font-weight:600}
+  .brand .dot{color:var(--accent)}
+  .whoami{font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+  .whoami a{color:var(--accent);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--accent)}
+
+  h1{font-size:30px;line-height:1.15;margin:0 0 6px;letter-spacing:-.01em}
+  .lede{color:var(--ink-soft);margin:0 0 26px;max-width:60ch}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:22px;box-shadow:var(--shadow);margin-bottom:18px;
+  }
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.09em;
+    font-family:var(--mono);color:var(--ink-soft);margin:0 0 4px;font-weight:600}
+  .card .hint{color:var(--ink-soft);font-size:14px;margin:0 0 16px}
+
+  label.field{display:block;margin-bottom:14px}
+  label.field > span{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px;font-family:var(--mono)}
+  input[type=text],select{
+    width:100%;font:inherit;color:var(--ink);
+    padding:11px 12px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;
+  }
+  input[type=text]:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+
+  /* segmented radio groups */
+  .seg{display:flex;flex-wrap:wrap;gap:8px}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label{
+    font-family:var(--mono);font-size:13px;cursor:pointer;
+    padding:8px 13px;border:1px solid var(--line-strong);border-radius:999px;
+    background:#fff;color:var(--ink-soft);user-select:none;
+  }
+  .seg input:checked + label{background:var(--accent);border-color:var(--accent);color:#fff}
+  .seg label:hover{border-color:var(--accent)}
+
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .row > *{flex:1;min-width:200px}
+
+  .btn{
+    font:inherit;font-weight:600;cursor:pointer;border-radius:10px;
+    padding:12px 20px;border:1px solid transparent;background:var(--accent);color:#fff;
+  }
+  .btn:hover{filter:brightness(1.06)}
+  .btn.ghost{background:#fff;color:var(--ink);border-color:var(--line-strong)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent);filter:none}
+  .btn:disabled{opacity:.5;cursor:not-allowed;filter:none}
+  .btn.wide{width:100%}
+
+  .est{font-family:var(--mono);font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.7}
+  .est b{color:var(--accent)}
+  .est .warn{color:var(--warn);font-weight:600}
+
+  /* ---- exam surface ---- */
+  .examhead{
+    position:sticky;top:0;z-index:5;background:var(--paper);
+    padding:12px 0 12px;border-bottom:1px solid var(--line-strong);margin-bottom:20px;
+  }
+  .examhead .line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .qcount{font-family:var(--mono);font-size:13px;color:var(--ink-soft)}
+  .timer{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:.02em}
+  .timer.crit{color:var(--warn)}
+  /* filmstrip progress */
+  .strip{display:flex;gap:3px;margin-top:12px}
+  .strip i{height:5px;flex:1;background:var(--line);border-radius:3px}
+  .strip i.done{background:var(--accent)}
+  .strip i.here{background:var(--ink)}
+
+  .qmeta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .tag{font-family:var(--mono);font-size:11px;letter-spacing:.03em;
+    padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--ink-soft)}
+  .tag.pts{background:var(--accent-weak);color:var(--accent)}
+  .tag.src{background:#EFEAF7;color:#5B4B8A}
+  .tag.multi{background:var(--warn-weak);color:var(--warn)}
+
+  .qtext{font-size:19px;font-weight:600;margin:0 0 18px;line-height:1.4}
+
+  .opt{
+    display:flex;gap:12px;align-items:flex-start;
+    padding:14px 15px;border:1px solid var(--line-strong);border-radius:11px;
+    margin-bottom:10px;cursor:pointer;background:#fff;transition:border-color .12s,background .12s;
+  }
+  .opt:hover{border-color:var(--accent)}
+  .opt .box{
+    flex:none;width:22px;height:22px;border:1.5px solid var(--line-strong);
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:1px;
+  }
+  .opt.single .box{border-radius:50%}
+  .opt.multi .box{border-radius:6px}
+  .opt.sel{border-color:var(--accent);background:var(--accent-weak)}
+  .opt.sel .box{background:var(--accent);border-color:var(--accent);color:#fff}
+  .opt .txt{flex:1}
+  /* review states */
+  .opt.correct{border-color:var(--ok);background:var(--ok-weak)}
+  .opt.correct .box{background:var(--ok);border-color:var(--ok);color:#fff}
+  .opt.wrong{border-color:var(--warn);background:var(--warn-weak)}
+  .opt.wrong .box{background:var(--warn);border-color:var(--warn);color:#fff}
+  .explain{font-size:14px;color:var(--ink-soft);border-left:3px solid var(--accent);
+    padding:8px 0 8px 14px;margin-top:6px;background:linear-gradient(90deg,var(--accent-weak),transparent)}
+
+  .nav{display:flex;justify-content:space-between;gap:12px;margin-top:22px}
+
+  /* ---- results ---- */
+  .score{font-family:var(--mono);font-size:52px;font-weight:700;line-height:1;margin:4px 0}
+  .score small{font-size:20px;color:var(--ink-soft);font-weight:400}
+  .pct{font-family:var(--mono);color:var(--accent);font-weight:600}
+  table.bd{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  table.bd th,table.bd td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  table.bd th{font-family:var(--mono);font-size:12px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  table.bd td.n{font-family:var(--mono);text-align:right}
+
+  .hist{font-family:var(--mono);font-size:13px}
+  .hist div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .hist .muted{color:var(--ink-soft)}
+
+  details.adv{margin-top:6px}
+  details.adv summary{font-family:var(--mono);font-size:13px;color:var(--accent);cursor:pointer}
+  .keyrow{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .keyrow > *{flex:1;min-width:160px}
+  .msg{font-family:var(--mono);font-size:13px;margin-top:10px}
+  .msg.err{color:var(--warn)}
+  .msg.ok{color:var(--ok)}
+
+  .hidden{display:none !important}
+  footer{margin-top:40px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-align:center}
+  @media (max-width:560px){ h1{font-size:24px} .score{font-size:42px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand"><b>Deep Learning</b> <span class="dot">/</span> MCQ Trainer</div>
+    <div class="whoami" id="whoami"></div>
+  </header>
+
+  <!-- ============================ SETUP ============================ -->
+  <section id="setup">
+    <h1>Practice, not memorise.</h1>
+    <p class="lede">Questions are drawn fresh and shuffled from a bank built out of the lecture
+      notes, the past exams and the programming exercises. Sit the whole bank, or narrow it to
+      exercise-only or exam-only practice — no two sittings look the same.</p>
+
+    <div class="card" id="nameCard">
+      <h2>Your name</h2>
+      <p class="hint">Kept only on this device, so your attempts show up under your name.</p>
+      <label class="field"><span>name</span>
+        <input type="text" id="nameInput" placeholder="e.g. Alex Kumar" autocomplete="name" />
+      </label>
+      <button class="btn" id="saveName">Save & continue</button>
+    </div>
+
+    <div class="card hidden" id="configCard">
+      <h2>Build your exam</h2>
+      <p class="hint">Time is derived from the 90-minutes-per-100-points rule, so shorter papers get proportionally less time.</p>
+
+      <label class="field"><span>mode</span></label>
+      <div class="seg" id="modeSeg" style="margin-bottom:16px">
+        <input type="radio" name="mode" id="m-full" value="full" checked><label for="m-full">Full · 100 pts / 90 min</label>
+        <input type="radio" name="mode" id="m-points" value="points"><label for="m-points">Custom points</label>
+        <input type="radio" name="mode" id="m-topic" value="topic"><label for="m-topic">Single topic</label>
+      </div>
+
+      <div class="row">
+        <label class="field" id="pointsField" style="display:none"><span>target points</span>
+          <select id="pointsSel">
+            <option value="10">10 points</option>
+            <option value="20">20 points</option>
+            <option value="40" selected>40 points</option>
+            <option value="60">60 points</option>
+            <option value="100">100 points</option>
+          </select>
+        </label>
+
+        <label class="field" id="topicField" style="display:none"><span>topic</span>
+          <select id="topicSel"></select>
+        </label>
+      </div>
+
+      <label class="field"><span>question source</span></label>
+      <div class="seg" id="srcSeg" style="margin-bottom:8px">
+        <input type="radio" name="src" id="src-all" value="all" checked><label for="src-all">Whole bank</label>
+        <input type="radio" name="src" id="src-ex" value="exercises"><label for="src-ex">Exercises only</label>
+        <input type="radio" name="src" id="src-pe" value="past exams"><label for="src-pe">Past exams only</label>
+        <input type="radio" name="src" id="src-ln" value="lecture notes"><label for="src-ln">Lecture notes only</label>
+      </div>
+      <p class="hint" id="srcHint" style="margin-top:0">The whole bank mixes all four sources. The other three narrow the draw to one of them.</p>
+
+      <div class="row">
+        <label class="field" id="sheetField" style="display:none"><span>exercise sheet</span>
+          <select id="sheetSel">
+            <option value="all" selected>All sheets (0–4)</option>
+            <option value="0">Sheet 0 · NumPy &amp; ImageGenerator</option>
+            <option value="1">Sheet 1 · Basic framework</option>
+            <option value="2">Sheet 2 · CNN layers &amp; optimizers</option>
+            <option value="3">Sheet 3 · Regularization &amp; RNN</option>
+            <option value="4">Sheet 4 · PyTorch challenge</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field"><span>difficulty</span></label>
+      <div class="seg" id="diffSeg" style="margin-bottom:16px">
+        <input type="radio" name="diff" id="d-basics" value="basics"><label for="d-basics">Basics</label>
+        <input type="radio" name="diff" id="d-inter" value="intermediate"><label for="d-inter">Intermediate</label>
+        <input type="radio" name="diff" id="d-adv" value="advanced"><label for="d-adv">Advanced</label>
+        <input type="radio" name="diff" id="d-mixed" value="mixed" checked><label for="d-mixed">Mixed · 45/35/20</label>
+      </div>
+
+      <label class="field"><span>answer style</span></label>
+      <div class="seg" id="styleSeg" style="margin-bottom:8px">
+        <input type="radio" name="style" id="s-single" value="single_choice"><label for="s-single">Single choice</label>
+        <input type="radio" name="style" id="s-multi" value="multiple_choice"><label for="s-multi">Multiple choice</label>
+        <input type="radio" name="style" id="s-both" value="both" checked><label for="s-both">Either</label>
+      </div>
+
+      <p class="est" id="estimate"></p>
+      <button class="btn wide" id="startBtn" style="margin-top:14px">Start exam</button>
+    </div>
+
+    <div class="card hidden" id="historyCard">
+      <h2>Your recent attempts</h2>
+      <div class="hist" id="histList"></div>
+    </div>
+
+    <div class="card hidden" id="expandCard">
+      <h2>Fresh questions (optional)</h2>
+      <p class="hint">The bank works fully offline as-is. If you want new questions on top of it, paste
+        your own API key — it stays in this browser and is only ever sent to the provider you pick,
+        never to this site. Generated questions are added to your local bank.</p>
+      <details class="adv">
+        <summary>Add an API key to generate more</summary>
+        <div style="margin-top:14px">
+          <div class="keyrow">
+            <label class="field" style="margin:0"><span>provider</span>
+              <select id="provSel">
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+              </select>
+            </label>
+            <label class="field" style="margin:0"><span>topic</span>
+              <select id="genTopicSel"></select>
+            </label>
+            <label class="field" style="margin:0"><span>how many</span>
+              <select id="genCountSel">
+                <option>5</option><option selected>10</option><option>20</option>
+              </select>
+            </label>
+          </div>
+          <label class="field"><span>api key (stays on this device)</span>
+            <input type="text" id="keyInput" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+          </label>
+          <button class="btn ghost" id="genBtn">Generate & add to bank</button>
+          <div class="msg" id="genMsg"></div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============================ EXAM ============================ -->
+  <section id="exam" class="hidden">
+    <div class="examhead">
+      <div class="line">
+        <div class="qcount" id="qcount"></div>
+        <div class="timer" id="timer">--:--</div>
+      </div>
+      <div class="strip" id="strip"></div>
+    </div>
+    <div id="qbody"></div>
+    <div class="nav">
+      <button class="btn ghost" id="prevBtn">← Previous</button>
+      <button class="btn" id="nextBtn">Next →</button>
+    </div>
+  </section>
+
+  <!-- ============================ RESULTS ============================ -->
+  <section id="results" class="hidden">
+    <div class="card">
+      <h2>Result</h2>
+      <div class="score" id="scoreBig"></div>
+      <div id="scoreLine" style="color:var(--ink-soft)"></div>
+    </div>
+    <div class="card">
+      <h2>By topic</h2>
+      <table class="bd" id="topicBreak"><thead><tr><th>Topic</th><th class="n">Correct</th><th class="n">Points</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card hidden" id="sourceCard">
+      <h2>By source</h2>
+      <table class="bd" id="sourceBreak"><thead><tr><th>Source</th><th class="n">Correct</th><th class="n">Points</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+      <button class="btn ghost" id="reviewBtn">Review answers</button>
+      <button class="btn" id="againBtn">New exam</button>
+    </div>
+    <div id="reviewBody" class="hidden"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ *  Deep Learning MCQ Trainer — all client-side, no backend.
+ * ------------------------------------------------------------------ */
+const LS = {
+  name:  "dlmcq.name",
+  hist:  "dlmcq.history",
+  extra: "dlmcq.extraQuestions",
+};
+const RATIO_MIN_PER_POINT = 90/100;      // 90 min for 100 pts
+const MIXED = {basics:0.45, intermediate:0.35, advanced:0.20};
+
+let BANK = [];        // full bank (default + locally generated)
+let META = {};
+let session = null;   // current exam state
+
+const $ = s => document.querySelector(s);
+const el = (t,c) => { const e=document.createElement(t); if(c)e.className=c; return e; };
+const shuffle = a => { for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+const sample = (arr,n) => shuffle(arr.slice()).slice(0,n);
+
+/* ---------- load bank ---------- */
+async function loadBank(){
+  const res = await fetch("data/questions.json");
+  const data = await res.json();
+  META = data.meta || {};
+  const extra = JSON.parse(localStorage.getItem(LS.extra) || "[]");
+  BANK = data.questions.concat(extra);
+  $("#foot").textContent = `bank: ${BANK.length} questions · ${extra.length} generated locally`;
+}
+
+/* ---------- source options ---------- */
+/* A source button is only useful if the bank actually holds that source, so
+   empty ones are hidden. "Generated" only appears once the user has made some. */
+function syncSourceOptions(){
+  const have = new Set(BANK.map(q=>q.source).filter(Boolean));
+  const seg = $("#srcSeg");
+  if(have.has("generated") && !$("#src-gen")){
+    const inp = el("input"); inp.type="radio"; inp.name="src"; inp.id="src-gen"; inp.value="generated";
+    const lab = el("label"); lab.setAttribute("for","src-gen"); lab.textContent="Generated only";
+    seg.appendChild(inp); seg.appendChild(lab);
+    inp.addEventListener("change", onSourceChange);
+  }
+  document.querySelectorAll('#srcSeg input[name=src]').forEach(inp=>{
+    if(inp.value==="all") return;
+    const lab = seg.querySelector(`label[for="${inp.id}"]`);
+    const ok = have.has(inp.value);
+    inp.style.display = ok ? "" : "none";
+    if(lab) lab.style.display = ok ? "" : "none";
+    if(!ok && inp.checked){ $("#src-all").checked = true; }
+  });
+}
+
+/* ---------- topics ---------- */
+function topics(){ return [...new Set(BANK.map(q=>q.topic))].sort(); }
+function fillTopicSelects(){
+  const opts = topics().map(t=>`<option>${t}</option>`).join("");
+  $("#topicSel").innerHTML = opts;
+  $("#genTopicSel").innerHTML = opts;
+}
+
+/* ---------- name gate ---------- */
+function initName(){
+  const saved = localStorage.getItem(LS.name);
+  if(saved){ enterApp(saved); }
+  $("#saveName").onclick = () => {
+    const v = $("#nameInput").value.trim();
+    if(!v){ $("#nameInput").focus(); return; }
+    localStorage.setItem(LS.name, v);
+    enterApp(v);
+  };
+  $("#nameInput").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#saveName").click(); });
+}
+function enterApp(name){
+  $("#nameCard").classList.add("hidden");
+  $("#configCard").classList.remove("hidden");
+  $("#expandCard").classList.remove("hidden");
+  $("#whoami").innerHTML = `${name} · <a id="switchUser">not you?</a>`;
+  $("#switchUser").onclick = ()=>{ localStorage.removeItem(LS.name); location.reload(); };
+  renderHistory();
+  updateEstimate();
+}
+
+/* ---------- config wiring ---------- */
+function currentMode(){ return document.querySelector('input[name=mode]:checked').value; }
+function currentDiff(){ return document.querySelector('input[name=diff]:checked').value; }
+function currentStyle(){ return document.querySelector('input[name=style]:checked').value; }
+function currentSource(){ return document.querySelector('input[name=src]:checked').value; }
+function currentSheet(){ return $("#sheetSel").value; }
+
+const SOURCE_LABEL = {
+  "seed":          "seed",
+  "lecture notes": "lecture notes",
+  "past exams":    "past exams",
+  "exercises":     "exercises",
+  "generated":     "generated",
+};
+const SHEET_LABEL = {
+  0:"Sheet 0 · NumPy & ImageGenerator", 1:"Sheet 1 · Basic framework",
+  2:"Sheet 2 · CNN layers & optimizers", 3:"Sheet 3 · Regularization & RNN",
+  4:"Sheet 4 · PyTorch challenge",
+};
+
+function onModeChange(){
+  const m = currentMode();
+  $("#pointsField").style.display = m==="points" ? "block" : "none";
+  $("#topicField").style.display  = m==="topic"  ? "block" : "none";
+  updateEstimate();
+}
+function onSourceChange(){
+  $("#sheetField").style.display = currentSource()==="exercises" ? "block" : "none";
+  updateEstimate();
+}
+
+/* choose a target point total for the exam */
+function targetPoints(){
+  const m = currentMode();
+  if(m==="full")   return 100;
+  if(m==="points") return parseInt($("#pointsSel").value,10);
+  return 30; // single-topic default target
+}
+function timeForPoints(p){ return Math.max(3, Math.round(p*RATIO_MIN_PER_POINT)); }
+
+/* how many points the current filters can actually supply, per difficulty */
+function poolStats(){
+  const qs = pool();
+  const st = {basics:0, intermediate:0, advanced:0};
+  qs.forEach(q => { if(q.difficulty in st) st[q.difficulty] += q.points; });
+  return {n: qs.length, pts: st.basics+st.intermediate+st.advanced, byDiff: st};
+}
+
+/* the mixed ratio can only be honoured if every bucket can cover its share */
+function ratioShortfall(target){
+  if(currentDiff()!=="mixed") return null;
+  const s = poolStats().byDiff;
+  const short = Object.keys(MIXED).filter(d => s[d] < MIXED[d]*target);
+  return short.length ? short : null;
+}
+
+function updateEstimate(){
+  const p = targetPoints();
+  const mins = timeForPoints(p);
+  const st = poolStats();
+  const src = currentSource();
+  const srcTxt = src==="all" ? "whole bank"
+    : src==="exercises" && currentSheet()!=="all"
+      ? `exercises · sheet ${currentSheet()}`
+      : SOURCE_LABEL[src] || src;
+
+  let html = `Target ≈ <b>${p} points</b> · time limit <b>${mins} min</b> `+
+             `(${RATIO_MIN_PER_POINT} min/point).<br>`+
+             `Drawing from <b>${srcTxt}</b>: ${st.n} questions, ${st.pts} points available.`;
+
+  if(st.n===0){
+    html += `<br><span class="warn">Nothing matches this combination — widen the source, topic or answer style.</span>`;
+  } else if(st.pts < p){
+    html += `<br><span class="warn">Only ${st.pts} points available, so the paper will be shorter than ${p}.</span>`;
+  } else {
+    const short = ratioShortfall(p);
+    if(short){
+      html += `<br><span class="warn">Not enough ${short.join(" / ")} questions to hold the 45/35/20 split at this size — `+
+              `the paper will lean on the other levels.</span>`;
+    }
+  }
+  $("#estimate").innerHTML = html;
+}
+
+/* ---------- build a paper ---------- */
+function pool(){
+  const m = currentMode();
+  let qs = BANK.slice();
+  if(m==="topic"){ const t=$("#topicSel").value; qs = qs.filter(q=>q.topic===t); }
+  const src = currentSource();
+  if(src!=="all"){
+    qs = qs.filter(q=>q.source===src);
+    if(src==="exercises"){
+      const sh = currentSheet();
+      if(sh!=="all") qs = qs.filter(q=>String(q.exercise)===sh);
+    }
+  }
+  const style = currentStyle();
+  if(style!=="both") qs = qs.filter(q=>q.type===style);
+  return qs;
+}
+
+/* pick questions until we hit the target point total, honouring difficulty mix */
+function assemble(){
+  const target = targetPoints();
+  const diff = currentDiff();
+  let src = pool();
+  if(src.length===0) return null;
+
+  const byDiff = {basics:[],intermediate:[],advanced:[]};
+  src.forEach(q=>byDiff[q.difficulty]?.push(q));
+  Object.values(byDiff).forEach(shuffle);
+
+  const wants = diff==="mixed" ? MIXED : {[diff]:1};
+  const picked = [];
+  const used = new Set();
+  let pts = 0;
+
+  function drawFrom(bucketName){
+    const b = byDiff[bucketName] || [];
+    for(const q of b){ if(!used.has(q.id)){ used.add(q.id); return q; } }
+    return null;
+  }
+
+  // First pass: respect the ratio by point budget
+  const order = Object.keys(wants);
+  let guard = 0;
+  while(pts < target && guard++ < 2000){
+    // pick the difficulty currently most "behind" its target share
+    let pickDiff = order[0], best = -1;
+    for(const d of order){
+      const share = wants[d];
+      const cur = picked.filter(q=>q.difficulty===d).reduce((s,q)=>s+q.points,0);
+      const deficit = share*target - cur;
+      if(deficit>best){ best=deficit; pickDiff=d; }
+    }
+    // Only a mixed paper may substitute across levels; when a single difficulty
+    // is chosen, an exhausted bucket ends the paper rather than quietly
+    // handing over questions the user did not ask for.
+    const q = diff==="mixed"
+      ? (drawFrom(pickDiff) || drawFrom("basics") || drawFrom("intermediate") || drawFrom("advanced"))
+      : drawFrom(pickDiff);
+    if(!q) break;
+    picked.push(q); pts += q.points;
+  }
+  if(picked.length===0) return null;
+  return { questions: shuffle(picked).map(shuffleOptions),
+           totalPoints: pts, minutes: timeForPoints(target) };
+}
+
+/* Present the options in a fresh order every sitting.
+   Without this a repeat sitting is memorable by position rather than content,
+   and questions added by the generator would keep whatever order the model
+   happened to emit. Numeric option sets are sorted ascending instead, which is
+   what a real paper does. Returns a copy — BANK is never mutated. */
+function shuffleOptions(q){
+  const keys = ["A","B","C","D"];
+  const vals = Object.values(q.options);
+  const allNumeric = vals.every(v => /^[-+]?\d*\.?\d+$/.test(String(v).trim()));
+  const order = allNumeric
+    ? Object.keys(q.options).sort((a,b)=>parseFloat(q.options[a])-parseFloat(q.options[b]))
+    : shuffle(Object.keys(q.options));
+  const options = {}, remap = {};
+  order.forEach((oldKey,i)=>{ options[keys[i]] = q.options[oldKey]; remap[oldKey] = keys[i]; });
+  return {...q, options,
+          correct_answers: q.correct_answers.map(c=>remap[c]).sort()};
+}
+
+/* ---------- run exam ---------- */
+function startExam(){
+  const paper = assemble();
+  if(!paper){ alert("No questions match that combination. Try 'Either' answer style, a different topic, or widen the question source."); return; }
+  const src = currentSource();
+  const srcLabel = src==="all" ? "whole bank"
+    : src==="exercises" && currentSheet()!=="all"
+      ? `exercises · sheet ${currentSheet()}`
+      : (SOURCE_LABEL[src] || src);
+  session = {
+    ...paper,
+    srcLabel,
+    idx:0,
+    answers: paper.questions.map(()=>[]),   // selected option keys per question
+    started: Date.now(),
+    deadline: Date.now() + paper.minutes*60000,
+    submitted:false,
+  };
+  $("#setup").classList.add("hidden");
+  $("#results").classList.add("hidden");
+  $("#exam").classList.remove("hidden");
+  buildStrip();
+  renderQuestion();
+  tick();
+  session.timerId = setInterval(tick, 1000);
+  window.scrollTo(0,0);
+}
+
+function buildStrip(){
+  const s = $("#strip"); s.innerHTML="";
+  session.questions.forEach(()=>s.appendChild(el("i")));
+}
+function paintStrip(){
+  [...$("#strip").children].forEach((i,k)=>{
+    i.className = "";
+    if(session.answers[k].length) i.classList.add("done");
+    if(k===session.idx) i.classList.add("here");
+  });
+}
+
+function tick(){
+  const left = session.deadline - Date.now();
+  const t = $("#timer");
+  if(left<=0){ t.textContent="00:00"; submitExam(); return; }
+  const m = Math.floor(left/60000), s = Math.floor((left%60000)/1000);
+  t.textContent = String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  t.classList.toggle("crit", left < 60000);
+}
+
+function sourceTag(q){
+  if(!q.source) return "";
+  const label = q.source==="exercises" && q.exercise!==undefined
+    ? `exercise ${q.exercise}`
+    : (SOURCE_LABEL[q.source] || q.source);
+  return `<span class="tag src">${label}</span>`;
+}
+
+function renderQuestion(){
+  const q = session.questions[session.idx];
+  const multi = q.type==="multiple_choice";
+  $("#qcount").textContent = `Question ${session.idx+1} of ${session.questions.length}`;
+  const body = $("#qbody"); body.innerHTML="";
+
+  const meta = el("div","qmeta");
+  meta.innerHTML =
+    `<span class="tag">${q.topic}</span>`+
+    `<span class="tag">${q.difficulty}</span>`+
+    `<span class="tag pts">${q.points} pt${q.points>1?"s":""}</span>`+
+    sourceTag(q)+
+    (multi?`<span class="tag multi">select all that apply</span>`:``);
+  body.appendChild(meta);
+
+  const qt = el("p","qtext"); qt.textContent = q.question; body.appendChild(qt);
+
+  const keys = Object.keys(q.options);
+  keys.forEach(k=>{
+    const o = el("div", "opt "+(multi?"multi":"single"));
+    if(session.answers[session.idx].includes(k)) o.classList.add("sel");
+    o.innerHTML = `<div class="box">${k}</div><div class="txt">${q.options[k]}</div>`;
+    o.onclick = ()=>toggle(k, multi);
+    body.appendChild(o);
+  });
+
+  $("#prevBtn").disabled = session.idx===0;
+  $("#nextBtn").textContent = session.idx===session.questions.length-1 ? "Finish & grade" : "Next →";
+  paintStrip();
+}
+
+function toggle(k, multi){
+  const cur = session.answers[session.idx];
+  if(multi){
+    const i = cur.indexOf(k);
+    if(i>=0) cur.splice(i,1); else cur.push(k);
+  } else {
+    session.answers[session.idx] = cur.includes(k) ? [] : [k];
+  }
+  renderQuestion();
+}
+
+$("#nextBtn") && ($("#nextBtn").onclick = ()=>{
+  if(session.idx < session.questions.length-1){ session.idx++; renderQuestion(); window.scrollTo(0,0); }
+  else submitExam();
+});
+$("#prevBtn") && ($("#prevBtn").onclick = ()=>{
+  if(session.idx>0){ session.idx--; renderQuestion(); window.scrollTo(0,0); }
+});
+
+/* ---------- grade ---------- */
+function isCorrect(q, ans){
+  const correct = q.correct_answers.slice().sort().join(",");
+  const given = ans.slice().sort().join(",");
+  return correct===given && ans.length>0;
+}
+function submitExam(){
+  if(session.submitted) return;
+  session.submitted = true;
+  clearInterval(session.timerId);
+
+  let got=0, max=0, right=0;
+  const perTopic = {};
+  const perSource = {};
+  session.questions.forEach((q,i)=>{
+    max += q.points;
+    const ok = isCorrect(q, session.answers[i]);
+    if(ok){ got+=q.points; right++; }
+    const t = perTopic[q.topic] ||= {right:0,total:0,pts:0,maxpts:0};
+    t.total++; t.maxpts+=q.points;
+    if(ok){ t.right++; t.pts+=q.points; }
+    const sKey = q.source ? (SOURCE_LABEL[q.source]||q.source) : "unlabelled";
+    const s = perSource[sKey] ||= {right:0,total:0,pts:0,maxpts:0};
+    s.total++; s.maxpts+=q.points;
+    if(ok){ s.right++; s.pts+=q.points; }
+  });
+  const pct = max? Math.round(got/max*100) : 0;
+
+  // record
+  const hist = JSON.parse(localStorage.getItem(LS.hist)||"[]");
+  hist.unshift({when:Date.now(), got, max, pct, n:session.questions.length,
+                src:session.srcLabel});
+  localStorage.setItem(LS.hist, JSON.stringify(hist.slice(0,20)));
+
+  showResults(got,max,pct,right,perTopic,perSource);
+}
+
+function showResults(got,max,pct,right,perTopic,perSource){
+  $("#exam").classList.add("hidden");
+  $("#results").classList.remove("hidden");
+  $("#scoreBig").innerHTML = `${got}<small> / ${max} pts</small>`;
+  $("#scoreLine").innerHTML =
+    `<span class="pct">${pct}%</span> · ${right} of ${session.questions.length} questions correct`+
+    (session.srcLabel ? ` · drawn from <b>${session.srcLabel}</b>` : ``);
+
+  const tb = $("#topicBreak").querySelector("tbody"); tb.innerHTML="";
+  Object.entries(perTopic).sort().forEach(([t,v])=>{
+    const tr=el("tr");
+    tr.innerHTML = `<td>${t}</td><td class="n">${v.right}/${v.total}</td><td class="n">${v.pts}/${v.maxpts}</td>`;
+    tb.appendChild(tr);
+  });
+
+  // per-source breakdown — only worth showing when the paper mixed sources
+  const srcCard = $("#sourceCard");
+  const keys = Object.keys(perSource);
+  if(keys.length > 1){
+    srcCard.classList.remove("hidden");
+    const sb = $("#sourceBreak").querySelector("tbody"); sb.innerHTML="";
+    keys.sort().forEach(s=>{
+      const v = perSource[s];
+      const tr=el("tr");
+      tr.innerHTML = `<td>${s}</td><td class="n">${v.right}/${v.total}</td><td class="n">${v.pts}/${v.maxpts}</td>`;
+      sb.appendChild(tr);
+    });
+  } else {
+    srcCard.classList.add("hidden");
+  }
+
+  // build review (hidden until asked)
+  const rb=$("#reviewBody"); rb.innerHTML="";
+  session.questions.forEach((q,i)=>{
+    const card = el("div","card");
+    const ans = session.answers[i];
+    const meta = el("div","qmeta");
+    meta.innerHTML = `<span class="tag">${q.topic}</span><span class="tag">${q.difficulty}</span>`+
+      `<span class="tag pts">${q.points} pt${q.points>1?"s":""}</span>`+ sourceTag(q);
+    card.appendChild(meta);
+    const qt=el("p","qtext"); qt.textContent=q.question; card.appendChild(qt);
+    Object.keys(q.options).forEach(k=>{
+      const correct = q.correct_answers.includes(k);
+      const chosen = ans.includes(k);
+      let cls = "opt "+(q.type==="multiple_choice"?"multi":"single");
+      if(correct) cls+=" correct";
+      else if(chosen) cls+=" wrong";
+      const o=el("div",cls);
+      o.innerHTML=`<div class="box">${k}</div><div class="txt">${q.options[k]}</div>`;
+      card.appendChild(o);
+    });
+    if(q.explanation){ const ex=el("div","explain"); ex.textContent=q.explanation; card.appendChild(ex); }
+    rb.appendChild(card);
+  });
+  $("#reviewBtn").textContent="Review answers";
+  rb.classList.add("hidden");
+  window.scrollTo(0,0);
+}
+
+$("#reviewBtn").onclick = ()=>{
+  const rb=$("#reviewBody");
+  rb.classList.toggle("hidden");
+  $("#reviewBtn").textContent = rb.classList.contains("hidden") ? "Review answers" : "Hide review";
+};
+$("#againBtn").onclick = ()=>{
+  $("#results").classList.add("hidden");
+  $("#setup").classList.remove("hidden");
+  renderHistory(); updateEstimate();
+  window.scrollTo(0,0);
+};
+
+/* ---------- history ---------- */
+function renderHistory(){
+  const hist = JSON.parse(localStorage.getItem(LS.hist)||"[]");
+  const card=$("#historyCard"), list=$("#histList");
+  if(!hist.length){ card.classList.add("hidden"); return; }
+  card.classList.remove("hidden"); list.innerHTML="";
+  hist.forEach(h=>{
+    const d=new Date(h.when);
+    const row=el("div");
+    row.innerHTML=`<span class="muted">${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`+
+      `${h.src ? " · "+h.src : ""}</span>`+
+      `<span>${h.got}/${h.max} · ${h.pct}%</span>`;
+    list.appendChild(row);
+  });
+}
+
+/* ---------- optional: generate more with user's own key ---------- */
+const LECTURE_FILE = {
+  "Introduction":"0_Intro.md",
+  "Neural Networks":"1_NeuralNetworks.md",
+  "Loss and Optimization":"2_LossAndOptimization.md",
+  "Activation Functions and CNN":"3_CNNs.md",
+  "Regularization":"4_Regularization.md",
+  "Common Practices":"5_CommonPractices.md",
+  "Architectures":"6_Architectures.md",
+  "Recurrent Neural Networks":"7_RecurrentNeuralNetworks.md",
+  "Visualization and Attention Mechanism":"8_Visualization.md",
+  "Deep Reinforcement Learning":"9_ReinforcementLearning.md",
+  "Unsupervised Learning":"10_Unsupervised.md",
+  "Segmentation":"11_SegmentationAndObjectDetection.md",
+};
+async function lectureExcerpt(topic){
+  const f = LECTURE_FILE[topic];
+  if(!f) return "";
+  try{
+    const r = await fetch("lectures/"+f);
+    if(r.ok) return (await r.text()).slice(0, 7000);
+  }catch(e){ /* offline or file missing — generate without grounding */ }
+  return "";
+}
+/* Questions generated here must match the shape of everything else in the bank,
+   otherwise they break the review screen and the source filters. The prompt
+   asks for that shape and sanitize() enforces it, dropping anything malformed. */
+const DIFF_POINTS = {basics:[1], intermediate:[2,3], advanced:[3,4]};
+const EXCLUDED_TOPICS = ["Weakly Supervised Learning","Known Operator Learning",
+                         "Graph Neural Networks","Self-Supervised Learning"];
+
+function sanitize(raw, topic){
+  const out = [];
+  (Array.isArray(raw)?raw:[]).forEach((q,i)=>{
+    if(!q || typeof q.question!=="string" || !q.options || !Array.isArray(q.correct_answers)) return;
+    const opts = q.options;
+    if(JSON.stringify(Object.keys(opts).sort()) !== '["A","B","C","D"]') return;
+    if(Object.values(opts).some(v=>typeof v!=="string" || !v.trim())) return;
+    const diff = DIFF_POINTS[q.difficulty] ? q.difficulty : "intermediate";
+    let pts = parseInt(q.points,10);
+    if(!DIFF_POINTS[diff].includes(pts)) pts = DIFF_POINTS[diff][0];
+    const corr = [...new Set(q.correct_answers)].filter(c=>c in opts);
+    if(!corr.length || corr.length>=4) return;
+    const type = corr.length>1 ? "multiple_choice" : "single_choice";
+    let text = q.question.trim();
+    if(type==="multiple_choice" && !/select all that apply/i.test(text)){
+      text = text.replace(/\s*$/,"") + " (Select all that apply)";
+    }
+    if(type==="single_choice" && /select all that apply/i.test(text)) return;
+    let expl = (typeof q.explanation==="string" ? q.explanation.trim() : "");
+    if(!expl) expl = "Generated question — no explanation was supplied.";
+    if(!/[.!?]$/.test(expl)) expl += ".";
+    out.push({
+      id: `gen${Date.now()}_${i}`,
+      topic: topic,
+      difficulty: diff,
+      points: pts,
+      type: type,
+      question: text,
+      options: {A:opts.A.trim(), B:opts.B.trim(), C:opts.C.trim(), D:opts.D.trim()},
+      correct_answers: corr.sort(),
+      explanation: expl,
+      source: "generated",
+    });
+  });
+  return out;
+}
+
+async function generateQuestions(){
+  const provider=$("#provSel").value;
+  const topic=$("#genTopicSel").value;
+  const count=parseInt($("#genCountSel").value,10);
+  const key=$("#keyInput").value.trim();
+  const msg=$("#genMsg");
+  if(!key){ msg.className="msg err"; msg.textContent="Paste an API key first."; return; }
+  msg.className="msg"; msg.textContent="Generating…"; $("#genBtn").disabled=true;
+
+  const schema = `Return ONLY a JSON array, no prose and no markdown fences. Each item must be exactly:
+{"topic":"${topic}",
+ "difficulty":"basics" | "intermediate" | "advanced",
+ "points": 1 for basics, 2 or 3 for intermediate, 3 or 4 for advanced (integer),
+ "type":"single_choice" | "multiple_choice",
+ "question":"...",
+ "options":{"A":"...","B":"...","C":"...","D":"..."},
+ "correct_answers":["A"],
+ "explanation":"one or two sentences saying why the answer is right, ending in a full stop"}
+
+Rules:
+- Always exactly four options keyed A, B, C, D. Never more, never fewer.
+- single_choice has exactly one correct answer; multiple_choice has two or three,
+  and its question text must end with "(Select all that apply)".
+- Every item needs a non-empty explanation. Options must not end with a full stop.
+- Do not write questions that require ${EXCLUDED_TOPICS.join(", ")}; those topics are out of scope.`;
+
+  const ground = await lectureExcerpt(topic);
+  const prompt = (ground ? `Base the questions on the following lecture notes and stay within this material:\n${ground}\n\n` : "") +
+    `Create ${count} exam-quality multiple-choice questions on the deep learning topic "${topic}". `+
+    `Use plausible distractors that reflect real misconceptions rather than obviously wrong filler. ${schema}`;
+
+  try{
+    let text="";
+    if(provider==="openai"){
+      const r=await fetch("https://api.openai.com/v1/chat/completions",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
+        body:JSON.stringify({model:"gpt-4o-mini",messages:[{role:"user",content:prompt}],temperature:0.7})
+      });
+      const d=await r.json();
+      if(d.error) throw new Error(d.error.message);
+      text=d.choices[0].message.content;
+    } else {
+      const r=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":key,
+          "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-3-5-sonnet-20241022",max_tokens:2000,
+          messages:[{role:"user",content:prompt}]})
+      });
+      const d=await r.json();
+      if(d.error) throw new Error(d.error.message);
+      text=d.content.map(b=>b.text||"").join("");
+    }
+    text = text.replace(/```json/gi,"").replace(/```/g,"").trim();
+    const parsed = JSON.parse(text);
+    const cleaned = sanitize(parsed, topic);
+    const dropped = (Array.isArray(parsed)?parsed.length:0) - cleaned.length;
+    if(!cleaned.length) throw new Error("the model returned nothing usable");
+    const extra=JSON.parse(localStorage.getItem(LS.extra)||"[]").concat(cleaned);
+    localStorage.setItem(LS.extra, JSON.stringify(extra));
+    await loadBank(); fillTopicSelects(); syncSourceOptions(); updateEstimate();
+    msg.className="msg ok";
+    msg.textContent=`Added ${cleaned.length} questions${dropped>0?` (${dropped} malformed, discarded)`:""}. Bank is now ${BANK.length}.`;
+  }catch(e){
+    msg.className="msg err"; msg.textContent="Could not generate: "+e.message;
+  }finally{ $("#genBtn").disabled=false; }
+}
+
+/* ---------- boot ---------- */
+(async function(){
+  await loadBank();
+  fillTopicSelects();
+  initName();
+  document.querySelectorAll('input[name=mode]').forEach(r=>r.addEventListener("change",onModeChange));
+  document.querySelectorAll('input[name=src]').forEach(r=>r.addEventListener("change",onSourceChange));
+  document.querySelectorAll('input[name=diff]').forEach(r=>r.addEventListener("change",updateEstimate));
+  document.querySelectorAll('input[name=style]').forEach(r=>r.addEventListener("change",updateEstimate));
+  $("#pointsSel").addEventListener("change",updateEstimate);
+  $("#topicSel").addEventListener("change",updateEstimate);
+  $("#sheetSel").addEventListener("change",updateEstimate);
+  $("#startBtn").onclick = startExam;
+  $("#genBtn").onclick = generateQuestions;
+  syncSourceOptions();
+  onSourceChange();
+  updateEstimate();
+})();
+</script>
+</body>
+</html>
