@@ -12,8 +12,8 @@ from collections import Counter, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from questions_exams import E
 from questions_exams_extra import E2
-from questions_lectures import L
 from questions_exercises import X
+from questions_chapters import K
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BANK = os.path.join(HERE, "..", "data", "questions.json")
@@ -28,9 +28,13 @@ EXCLUDED_KEYWORDS = [
     "graph convolution", "self-supervised", "self supervised",
 ]
 
+def canon(s):
+    return " ".join(re.sub(r"[^a-z0-9 ]", " ", s.lower()).split())
+
+
 data = json.load(open(BANK))
 existing = data["questions"]
-seen = {q["question"].strip() for q in existing}
+seen = {canon(q["question"]) for q in existing}
 
 
 def words(s):
@@ -59,10 +63,6 @@ def near_duplicate(q, pool):
         if oo and len(qo & oo) / len(qo | oo) > 0.5:
             return other
     return None
-
-
-def canon(s):
-    return " ".join(re.sub(r"[^a-z0-9 ]", " ", s.lower()).split())
 
 
 def same_option_set(q, pool):
@@ -115,17 +115,17 @@ for q in existing:
 added = 0
 skipped_exact = 0
 skipped_near = []
-for q in E + E2 + L + X:
-    if q["question"].strip() in seen:
+for q in E + E2 + X + K:
+    if canon(q["question"]) in seen:
         skipped_exact += 1
         continue
     validate(q)
     dup = near_duplicate(q, existing) or same_option_set(q, existing)
     if dup:
-        skipped_near.append((q["question"][:58], dup["id"]))
+        skipped_near.append((q["question"][:58], dup.get("id", dup["question"][:40])))
         continue
     existing.append(q)
-    seen.add(q["question"].strip())
+    seen.add(canon(q["question"]))
     added += 1
 
 # ---- enforce the excluded topics ------------------------------------------
