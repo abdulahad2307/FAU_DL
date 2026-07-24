@@ -90,18 +90,14 @@ def main():
         for c in q["correct_answers"]:
             if c not in q["options"]:
                 err(f"{w}: correct answer {c} is not an option")
-        if q["type"] == "single_choice":
-            if len(q["correct_answers"]) != 1:
-                err(f"{w}: single_choice with {len(q['correct_answers'])} answers")
-            if "select all" in q["question"].lower():
-                err(f"{w}: single_choice says 'select all'")
-        elif q["type"] == "multiple_choice":
-            if not 2 <= len(q["correct_answers"]) <= 3:
-                err(f"{w}: multiple_choice with {len(q['correct_answers'])} answers")
-            if "select all that apply" not in q["question"].lower():
-                err(f"{w}: multiple_choice missing '(Select all that apply)'")
-        else:
-            err(f"{w}: bad type {q['type']!r}")
+        # SS26 rule B: every question has exactly one correct option, and
+        # marking more than one scores zero. Multi-select must not appear.
+        if q["type"] != "single_choice":
+            err(f"{w}: type is {q['type']!r}, but SS26 allows single_choice only")
+        if len(q["correct_answers"]) != 1:
+            err(f"{w}: has {len(q['correct_answers'])} correct answers, SS26 allows one")
+        if "select all" in q["question"].lower():
+            err(f"{w}: prompts for multiple answers, which scores zero in SS26")
         if q["source"] == "exercises" and q.get("exercise") not in (0, 1, 2, 3, 4):
             err(f"{w}: exercise question without a valid sheet number")
         if q["topic"] in meta["excluded_topics"]:
@@ -133,6 +129,8 @@ def main():
 
     # ---------------- soft check: answer position -----------------------
     sc = [q for q in qs if q["type"] == "single_choice"]
+    if not sc:
+        err("no single_choice questions in the bank")
     pos = Counter(q["correct_answers"][0] for q in sc)
     print("Correct-answer position (single choice):")
     for k in KEYS:
