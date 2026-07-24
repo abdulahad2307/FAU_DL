@@ -14,6 +14,7 @@ from questions_exams import E
 from questions_exams_extra import E2
 from questions_exercises import X
 from questions_chapters import K
+from questions_singleanswer import S
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BANK = os.path.join(HERE, "..", "data", "questions.json")
@@ -97,25 +98,37 @@ def validate(q):
     assert sorted(q["options"]) == ["A", "B", "C", "D"], (where, sorted(q["options"]))
     for c in q["correct_answers"]:
         assert c in q["options"], (where, c)
-    if q["type"] == "single_choice":
-        assert len(q["correct_answers"]) == 1, where
-        assert "select all" not in q["question"].lower(), where
-    else:
-        assert 2 <= len(q["correct_answers"]) < len(q["options"]), where
-        assert "select all that apply" in q["question"].lower(), where
+    # SS26 format: exactly one correct option, never a select-all prompt.
+    assert q["type"] == "single_choice", (where, q["type"])
+    assert len(q["correct_answers"]) == 1, where
+    assert "select all" not in q["question"].lower(), where
     if q["source"] == "exercises":
         assert q.get("exercise") in (0, 1, 2, 3, 4), (where, q.get("exercise"))
     assert q["topic"] not in data["meta"]["excluded_topics"], (where, q["topic"])
 
 
+# Purge multi-select before validating, since validate() now enforces the
+# single-answer SS26 format.
+purged = sum(1 for q in existing if q["type"] == "multiple_choice")
+existing = [q for q in existing if q["type"] != "multiple_choice"]
+
 # validate what is already in the bank too, so a bad hand edit is caught
 for q in existing:
     validate(q)
 
+# The SS26 instructions state that every question has exactly one correct
+# option and that marking more than one scores zero. Multi-select questions are
+# therefore dropped; questions_singleanswer.py covers the same material in the
+# format the exam actually uses.
+dropped_multi = 0
+
 added = 0
 skipped_exact = 0
 skipped_near = []
-for q in E + E2 + X + K:
+for q in E + E2 + X + K + S:
+    if q["type"] == "multiple_choice":
+        dropped_multi += 1
+        continue
     if canon(q["question"]) in seen:
         skipped_exact += 1
         continue
@@ -139,6 +152,7 @@ def needs_excluded(q):
 
 dropped = [(q["question"][:58], needs_excluded(q)) for q in existing if needs_excluded(q)]
 existing = [q for q in existing if not needs_excluded(q)]
+
 
 # re-id sequentially
 for i, q in enumerate(existing, start=1):
@@ -164,6 +178,8 @@ pr = data["meta"]["priority"]
 print(f"Added {added} new questions. Bank now: {n}")
 print(f"Skipped {skipped_exact} exact duplicates, {len(skipped_near)} near duplicates.")
 print(f"Dropped {len(dropped)} questions needing excluded topics.")
+print(f"Dropped {dropped_multi} multi-select from source modules, purged {purged} already in the bank")
+print("  (SS26 allows exactly one correct option; marking more scores zero)")
 for txt, kws in dropped:
     print(f"    [{', '.join(kws)}] {txt}")
 for txt, other in skipped_near:
